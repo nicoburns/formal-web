@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Element.id reflects the id attribute</title>
+<link rel="help" href="https://dom.spec.whatwg.org/#dom-element-id">
+<link rel="help" href="https://dom.spec.whatwg.org/#concept-reflect">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<div id="with-id"></div>
+<div class="without-id"></div>
+<script>
+'use strict';
+
+test(() => {
+  assert_equals(document.getElementById('with-id').id, 'with-id');
+  assert_equals(document.querySelector('.without-id').id, '');
+}, 'id getter returns the id attribute, or the empty string when absent');
+
+test(() => {
+  const el = document.createElement('div');
+  el.id = 'a  b';
+  assert_equals(el.getAttribute('id'), 'a  b');
+  assert_equals(el.id, 'a  b');
+}, 'id setter sets the id attribute');
+
+test(() => {
+  const el = document.createElement('div');
+  el.setAttribute('id', 'foo');
+  assert_equals(el.id, 'foo');
+  el.removeAttribute('id');
+  assert_equals(el.id, '');
+}, 'id reflects setAttribute and removeAttribute changes');
+
+test(() => {
+  const el = document.createElement('div');
+  el.id = 'set-by-property';
+  document.body.appendChild(el);
+  assert_equals(document.getElementById('set-by-property'), el);
+  assert_true(el.matches('#set-by-property'));
+  el.remove();
+}, 'id setter is visible to getElementById and selectors');
+
+test(() => {
+  const el = document.createElement('div');
+  el.id = null;
+  assert_equals(el.getAttribute('id'), 'null');
+  el.id = 5;
+  assert_equals(el.id, '5');
+}, 'id setter converts its value to a string');
+</script>
