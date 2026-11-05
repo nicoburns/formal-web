@@ -104,12 +104,12 @@ impl Element {
 
     /// <https://dom.spec.whatwg.org/#dom-element-id>
     pub(crate) fn id(&self) -> String {
-        let document = self.node.document.borrow();
-        document
-            .get_node(self.node.node_id)
-            .and_then(|node| node.attr(blitz_dom::local_name!("id")))
-            .unwrap_or_default()
-            .to_owned()
+        self.get_attribute("id").unwrap_or_default()
+    }
+
+    /// <https://dom.spec.whatwg.org/#dom-element-id>
+    pub(crate) fn set_id(&self, value: &str) {
+        self.set_attribute("id", value);
     }
 
     /// <https://dom.spec.whatwg.org/#dom-element-classname>

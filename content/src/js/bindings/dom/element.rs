@@ -26,7 +26,7 @@ impl WebIdlInterface<crate::js::Types> for Element {
         def.add_attribute(AttributeDef {
             id: "id",
             getter: get_id,
-            setter: None,
+            setter: Some(set_id),
             static_: false,
             unforgeable: false,
             promise_type: false,
@@ -238,6 +238,17 @@ fn get_id(
 ) -> Completion<JsValue, crate::js::Types> {
     let id = try_with_element_ref(this, ec, |element| element.id())?;
     Ok(ec.value_from_string(ec.js_string_from_str(&id)))
+}
+
+fn set_id(
+    this: &JsValue,
+    args: &[JsValue],
+    ec: &mut dyn ExecutionContext<crate::js::Types>,
+) -> Completion<JsValue, crate::js::Types> {
+    let value_undefined = ec.value_undefined();
+    let value = ec.to_rust_string(args.first().cloned().unwrap_or(value_undefined))?;
+    try_with_element_ref(this, ec, |element| element.set_id(&value))?;
+    Ok(ec.value_undefined())
 }
 
 fn get_class_name(
