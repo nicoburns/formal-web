@@ -66,6 +66,13 @@ where
     Out: IpcSerialize + DeserializeOwned + Send + 'static,
     In: IpcSerialize + DeserializeOwned + Send + 'static,
 {
+    // Helpers outlive an embedder that is killed without a graceful
+    // shutdown, so have the kernel kill them when it dies.
+    #[cfg(target_os = "linux")]
+    rustix::process::set_parent_process_death_signal(Some(rustix::process::Signal::KILL)).map_err(
+        |error| IpcError::Transport(format!("failed to set parent death signal: {error}")),
+    )?;
+
     let (parent_to_child_tx, parent_to_child_rx): (
         IpcChannelSender<ChannelMessage<Out>>,
         ipc::IpcReceiver<ChannelMessage<Out>>,

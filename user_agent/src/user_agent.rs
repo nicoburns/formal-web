@@ -26,6 +26,7 @@ use log::{debug, error, info, trace};
 /// `RenderStarted`, assuming a 60 Hz display: how long a rendering cycle's
 /// top-level frame has to arrive before graphics composes without it.
 const FRAME_DEADLINE_MS: u64 = 16;
+const GRAPHICS_SHUTDOWN_GRACE_TIMEOUT: Duration = Duration::from_secs(5);
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -5485,8 +5486,11 @@ impl UserAgentWorker {
         {
             log::error!("failed to send shutdown to graphics process: {error}");
         }
-        // Drain events until ShutdownComplete arrives.
-        while let Ok(incoming) = self.graphics_event_receiver.recv() {
+        // Drain events until ShutdownComplete arrives. The graphics process
+        // handles Shutdown only after the work queued before it, so the wait
+        // is bounded and the child is killed once the grace period runs out.
+        let deadline = Instant::now() + GRAPHICS_SHUTDOWN_GRACE_TIMEOUT;
+        while let Ok(incoming) = self.graphics_event_receiver.recv_deadline(deadline) {
             if matches!(
                 incoming.payload,
                 ipc_messages::graphics::GraphicsEvent::ShutdownComplete
@@ -5494,10 +5498,29 @@ impl UserAgentWorker {
                 break;
             }
         }
-        if let Some(mut child) = self.graphics_child.take()
-            && let Err(error) = child.wait()
-        {
-            log::error!("failed to wait for graphics process exit: {error}");
+        if let Some(mut child) = self.graphics_child.take() {
+            loop {
+                match child.try_wait() {
+                    Ok(Some(_)) => break,
+                    Ok(None) if Instant::now() < deadline => {
+                        thread::sleep(Duration::from_millis(10));
+                    }
+                    Ok(None) => {
+                        log::error!("graphics process did not exit in time; killing it");
+                        if let Err(error) = child.kill() {
+                            log::error!("failed to kill graphics process: {error}");
+                        }
+                        if let Err(error) = child.wait() {
+                            log::error!("failed to wait for graphics process exit: {error}");
+                        }
+                        break;
+                    }
+                    Err(error) => {
+                        log::error!("failed to wait for graphics process exit: {error}");
+                        break;
+                    }
+                }
+            }
         }
 
         self.net_connection.shutdown();
