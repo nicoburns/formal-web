@@ -42,5 +42,8 @@ xpc-sys = { path = "xpc-sys", optional = true }
 # is a compile-only stub). Only pulled in when the `bek` feature is enabled.
 bek-sys = { path = "bek-sys", optional = true }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+rustix = { version = "1", features = ["process"] }
+
 [lib]
 path = "src/lib.rs"
